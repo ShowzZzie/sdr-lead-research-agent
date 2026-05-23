@@ -24,3 +24,6 @@ htmlcov/
 *.log
 .idea/
 .vscode/
+
+# scratch files
+src/scratch_world.py
