@@ -1,5 +1,7 @@
+from src.lra.schemas import LeadProfile
 from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
+import json
 
 tools = [
     {
@@ -37,7 +39,15 @@ def run(domain: str, client: LLMClient):
         })
 
         if response.stop_reason == "end_turn":
-            return response
+            messages.append({
+                "role": "user",
+                "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
+            })
+            final_response = client.final(
+                messages=messages,
+                output_model=LeadProfile
+            )
+            return final_response
 
         if response.stop_reason == "tool_use":
             for block in response.content:

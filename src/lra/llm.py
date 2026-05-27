@@ -13,3 +13,16 @@ class LLMClient:
             messages=messages,
             tools=tools
         )
+
+    def final(self, messages, output_model, max_tokens=max_tokens_config):
+        resp = self.client.messages.create(
+            model=self.model,
+            max_tokens=max_tokens,
+            messages=messages,
+        )
+
+        for block in resp.content:
+            if block.type == "text":
+                formatted = block.text.replace("```json","").replace("```","")
+                return output_model.model_validate_json(formatted)
+        raise ValueError("No text block in final response")
