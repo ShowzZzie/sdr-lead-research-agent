@@ -1,0 +1,62 @@
+from datetime import datetime
+from pydantic import AnyUrl, BaseModel
+from enum import Enum
+
+class Source(BaseModel):
+    url: AnyUrl
+    name: str
+    date_retrieved: datetime
+
+class Confidence(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+class FundingEvent(BaseModel):
+    round: str | None
+    date: datetime
+    amount_raised: float | None
+    investors: list[str]
+    source: Source
+
+class Person(BaseModel):
+    name: str
+    email: str | None
+    role: str
+    phone_number: str | None # for country prefix, the '+'
+    source: Source | None
+
+class TechSignal(BaseModel):
+    tool: str
+    source: Source
+    confidence: Confidence | None
+
+class FitSignal(BaseModel):
+    reason: str
+    confidence: Confidence
+    source: Source
+
+class NewsItem(BaseModel):
+    text: str
+    date_created: datetime
+    source: Source
+
+class Company(BaseModel):
+    name: str
+    website: AnyUrl | None
+    stock_symbol: str | None
+    category: str
+    description: str
+    employees_amount: int | None
+    employees_amount_confidence: Confidence | None
+    yoy_growth: float | None
+    yoy_growth_confidence: Confidence | None
+    sources: list[Source]
+
+class LeadProfile(BaseModel):
+    person: list[Person] = []
+    company: Company
+    tech_signal: list[TechSignal] = []
+    funding_events: list[FundingEvent] = []
+    fit_signal: list[FitSignal] = []
+    news_items: list[NewsItem] = []
