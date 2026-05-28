@@ -2,6 +2,8 @@ from src.lra.schemas import LeadProfile
 from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
 import json
+import httpx
+from bs4 import BeautifulSoup
 
 tools = [
     {
@@ -10,24 +12,33 @@ tools = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "company_name": {
+                "domain": {
                     "type": "string",
-                    "description": "Provide the name of the company, for which homepage URL should be fetched"
+                    "description": "Provide the website URL of the company, for which homepage URL should be fetched"
                 }
             },
-            "required": ["company_name"]
+            "required": ["domain"]
         }
     }
 ]
 
-def fetch_homepage(domain: str):
-    return "stripe.com"
+def fetch_homepage(domain: str) -> str:
+    with httpx.Client(timeout=10.0) as client:
+        try:
+            response = client.get(f"https://{domain}", follow_redirects=True)
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"failed fetching for {domain}: {e}") from e
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        return soup.get_text(separator="\n", strip=True)[:3000]
+
 
 def run(domain: str, client: LLMClient):
     messages = [] # initiating the list of messages
     first_message = {
         "role": "user",
-        "content": f"retrieve the domain from the home page of {domain}"
+        "content": f"Research the company at {domain}. Use the fetch_homepage tool to retrieve their homepage content, then analyze it."
     }
     messages.append(first_message)
 
@@ -37,13 +48,14 @@ def run(domain: str, client: LLMClient):
         if iterations >= 15:
             raise RuntimeError(f"Agent loop exceeded maximum iterations (15). Iteration ran {iterations}")
         iterations += 1
-        
+
         response = client.call(messages, tools)
         messages.append({
             "role": "assistant",
             "content": response.content
         })
 
+        print(f"[iteration {iterations}] stop_reason={response.stop_reason}")
         if response.stop_reason == "end_turn":
             messages.append({
                 "role": "user",
@@ -58,7 +70,8 @@ def run(domain: str, client: LLMClient):
         if response.stop_reason == "tool_use":
             for block in response.content:
                 if block.type == "tool_use" and block.name == "fetch_homepage":
-                    fh_result = fetch_homepage(block.input["company_name"])
+                    print(f"[tool] calling fetch_homepage with domain={domain}")
+                    fh_result = fetch_homepage(block.input["domain"])
                     messages.append({
                         "role": "user",
                         "content": [{"type": "tool_result", "tool_use_id": block.id, "content": fh_result}]
