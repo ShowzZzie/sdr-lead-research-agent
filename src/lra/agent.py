@@ -31,7 +31,13 @@ def run(domain: str, client: LLMClient):
     }
     messages.append(first_message)
 
+    iterations = 0
+
     while True:
+        if iterations >= 15:
+            raise RuntimeError(f"Agent loop exceeded maximum iterations (15). Iteration ran {iterations}")
+        iterations += 1
+        
         response = client.call(messages, tools)
         messages.append({
             "role": "assistant",
