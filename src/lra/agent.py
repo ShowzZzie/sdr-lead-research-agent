@@ -2,11 +2,14 @@ from src.lra.schemas import LeadProfile
 from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
 from src.lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
+from src.lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
 import json
+import httpx
+from bs4 import BeautifulSoup
 
-tools = [FETCH_HOMEPAGE_TOOL]
+tools = [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK]
 
-def run(domain: str, client: LLMClient):
+def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
     messages = [] # initiating the list of messages
     first_message = {
         "role": "user",
@@ -15,6 +18,8 @@ def run(domain: str, client: LLMClient):
     messages.append(first_message)
 
     iterations = 0
+
+    fh_result = None
 
     while True:
         if iterations >= 15:
@@ -43,10 +48,18 @@ def run(domain: str, client: LLMClient):
             for block in response.content:
                 if block.type == "tool_use" and block.name == "fetch_homepage":
                     print(f"[tool] calling fetch_homepage with domain={domain}")
-                    fh_result = fetch_homepage(block.input["domain"])
+                    fh_result = fetch_homepage(block.input["domain"], httpx_client)
+                    soup = BeautifulSoup(fh_result, 'html.parser')
                     messages.append({
                         "role": "user",
-                        "content": [{"type": "tool_result", "tool_use_id": block.id, "content": fh_result}]
+                        "content": [{"type": "tool_result", "tool_use_id": block.id, "content": soup.get_text(separator="\n", strip=True)[:3000]}]
+                    })
+                if block.type == "tool_use" and block.name == "extract_tech_stack":
+                    print(f"[tool] calling extract_tech_stack, fh_result available: {fh_result is not None}")
+                    ets_result = extract_tech_stack(fh_result)
+                    messages.append({
+                        "role": "user",
+                        "content": [{"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(ets_result)}]
                     })
 
 
@@ -56,10 +69,11 @@ def main():
         model=model
     )
 
-    result = run(domain="stripe.com", client=client)
-    print(result)
+    with httpx.Client(timeout=10.0) as httpx_client:
+        result = run(domain="monday.com", client=client, httpx_client=httpx_client)
+        print(result)
 
-    return result
+        return result
 
 
 if __name__ == "__main__":
