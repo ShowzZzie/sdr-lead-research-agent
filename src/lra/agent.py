@@ -1,38 +1,10 @@
 from src.lra.schemas import LeadProfile
 from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
+from src.lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
 import json
-import httpx
-from bs4 import BeautifulSoup
 
-tools = [
-    {
-        "name": "fetch_homepage",
-        "description": "Retrieve the domain of home page for the given company. Accepted output is: domain.tld",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "domain": {
-                    "type": "string",
-                    "description": "Provide the website URL of the company, for which homepage URL should be fetched"
-                }
-            },
-            "required": ["domain"]
-        }
-    }
-]
-
-def fetch_homepage(domain: str) -> str:
-    with httpx.Client(timeout=10.0) as client:
-        try:
-            response = client.get(f"https://{domain}", follow_redirects=True)
-            response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise RuntimeError(f"failed fetching for {domain}: {e}") from e
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        return soup.get_text(separator="\n", strip=True)[:3000]
-
+tools = [FETCH_HOMEPAGE_TOOL]
 
 def run(domain: str, client: LLMClient):
     messages = [] # initiating the list of messages
