@@ -3,13 +3,14 @@ from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
 from src.lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
 from src.lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
+from src.lra.database import create_db_and_tables, store_profile
 import json
 import httpx
 from bs4 import BeautifulSoup
 
 tools = [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK]
 
-def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
+def run(domain: str, client: LLMClient, httpx_client: httpx.Client):    
     messages = [] # initiating the list of messages
     first_message = {
         "role": "user",
@@ -18,6 +19,8 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
     messages.append(first_message)
 
     iterations = 0
+    input_tokens_track = 0
+    output_tokens_track = 0
 
     fh_result = None
 
@@ -31,6 +34,8 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
             "role": "assistant",
             "content": response.content
         })
+        input_tokens_track += response.usage.input_tokens
+        output_tokens_track += response.usage.output_tokens
 
         print(f"[iteration {iterations}] stop_reason={response.stop_reason}")
         if response.stop_reason == "end_turn":
@@ -38,10 +43,13 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
                 "role": "user",
                 "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
             })
-            final_response = client.final(
+            final_response, input_tokens_final, output_tokens_final = client.final(
                 messages=messages,
                 output_model=LeadProfile
             )
+            input_tokens_track += input_tokens_final
+            output_tokens_track += output_tokens_final
+            store_profile(domain=domain, profile=final_response, input_tokens=input_tokens_track, output_tokens=output_tokens_track)
             return final_response
 
         if response.stop_reason == "tool_use":
@@ -64,6 +72,8 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
 
 
 def main():
+    create_db_and_tables()
+
     client = LLMClient(
         api_key=api_key,
         model=model
