@@ -24,5 +24,5 @@ class LLMClient:
         for block in resp.content:
             if block.type == "text":
                 formatted = block.text.replace("```json","").replace("```","")
-                return output_model.model_validate_json(formatted)
+                return (output_model.model_validate_json(formatted), resp.usage.input_tokens, resp.usage.output_tokens)
         raise ValueError("No text block in final response")

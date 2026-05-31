@@ -9,3 +9,6 @@ if not anthropic_api_key:
 
 max_tokens=4096
 claude_model="claude-sonnet-4-6"
+
+database_name = "database.db"
+db_path = f"sqlite:///{database_name}"
