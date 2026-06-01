@@ -1,3 +1,5 @@
+from typing import cast
+from anthropic.types import MessageParam, ToolParam
 from src.lra.schemas import LeadProfile
 from src.lra.llm import LLMClient
 from src.lra.config import anthropic_api_key as api_key, claude_model as model
@@ -8,15 +10,15 @@ import json
 import httpx
 from bs4 import BeautifulSoup
 
-tools = [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK]
+tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK])
 
-def run(domain: str, client: LLMClient, httpx_client: httpx.Client):    
-    messages = [] # initiating the list of messages
+def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfile:    
+    messages: list[MessageParam] = [] # initiating the list of messages
     first_message = {
         "role": "user",
         "content": f"Research the company at {domain}. Use the fetch_homepage tool to retrieve their homepage content, then analyze it."
     }
-    messages.append(first_message)
+    messages.append(cast(MessageParam, first_message))
 
     iterations = 0
     input_tokens_track = 0
@@ -30,25 +32,26 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
         iterations += 1
 
         response = client.call(messages, tools)
-        messages.append({
+        messages.append(cast(MessageParam, {
             "role": "assistant",
             "content": response.content
-        })
+        }))
         input_tokens_track += response.usage.input_tokens
         output_tokens_track += response.usage.output_tokens
 
         print(f"[iteration {iterations}] stop_reason={response.stop_reason}")
         if response.stop_reason == "end_turn":
-            messages.append({
+            messages.append(cast(MessageParam, {
                 "role": "user",
                 "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
-            })
+            }))
             final_response, input_tokens_final, output_tokens_final = client.final(
                 messages=messages,
                 output_model=LeadProfile
             )
             input_tokens_track += input_tokens_final
             output_tokens_track += output_tokens_final
+            assert isinstance(final_response, LeadProfile)
             store_profile(domain=domain, profile=final_response, input_tokens=input_tokens_track, output_tokens=output_tokens_track)
             return final_response
 
@@ -56,24 +59,27 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client):
             for block in response.content:
                 if block.type == "tool_use" and block.name == "fetch_homepage":
                     print(f"[tool] calling fetch_homepage with domain={domain}")
-                    fh_result = fetch_homepage(block.input["domain"], httpx_client)
+                    fh_result = fetch_homepage(str(block.input["domain"]), httpx_client)
+                    assert fh_result is not None
                     soup = BeautifulSoup(fh_result, 'html.parser')
-                    messages.append({
+                    messages.append(cast(MessageParam, {
                         "role": "user",
                         "content": [{"type": "tool_result", "tool_use_id": block.id, "content": soup.get_text(separator="\n", strip=True)[:3000]}]
-                    })
+                    }))
                 if block.type == "tool_use" and block.name == "extract_tech_stack":
                     print(f"[tool] calling extract_tech_stack, fh_result available: {fh_result is not None}")
+                    assert fh_result is not None
                     ets_result = extract_tech_stack(fh_result)
-                    messages.append({
+                    messages.append(cast(MessageParam, {
                         "role": "user",
                         "content": [{"type": "tool_result", "tool_use_id": block.id, "content": json.dumps(ets_result)}]
-                    })
+                    }))
 
 
-def main():
+def main() -> None:
     create_db_and_tables()
 
+    assert api_key is not None
     client = LLMClient(
         api_key=api_key,
         model=model
@@ -82,8 +88,6 @@ def main():
     with httpx.Client(timeout=10.0) as httpx_client:
         result = run(domain="monday.com", client=client, httpx_client=httpx_client)
         print(result)
-
-        return result
 
 
 if __name__ == "__main__":

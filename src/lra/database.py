@@ -13,10 +13,10 @@ class Profile(SQLModel, table=True):
 
 engine = create_engine(db_path)
 
-def create_db_and_tables():
+def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
 
-def store_profile(domain: str, profile: LeadProfile, input_tokens: int, output_tokens: int):
+def store_profile(domain: str, profile: LeadProfile, input_tokens: int, output_tokens: int) -> None:
     with Session(engine) as session:
         db_profile = Profile(domain=domain, profile_json=profile.model_dump_json(), input_tokens=input_tokens, output_tokens=output_tokens)
         session.add(db_profile)
