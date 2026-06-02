@@ -2,7 +2,7 @@ from typing import Any
 import anthropic
 from anthropic.types import MessageParam, ToolParam
 from pydantic import BaseModel
-from src.lra.config import max_tokens as max_tokens_config
+from lra.config import max_tokens as max_tokens_config
 
 class LLMClient:
     def __init__(self, api_key: str, model: str) -> None:

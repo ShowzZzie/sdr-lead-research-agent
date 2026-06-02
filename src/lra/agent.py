@@ -1,11 +1,11 @@
 from typing import cast
 from anthropic.types import MessageParam, ToolParam
-from src.lra.schemas import LeadProfile
-from src.lra.llm import LLMClient
-from src.lra.config import anthropic_api_key as api_key, claude_model as model
-from src.lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
-from src.lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
-from src.lra.database import create_db_and_tables, store_profile
+from lra.schemas import LeadProfile
+from lra.llm import LLMClient
+from lra.config import anthropic_api_key as api_key, claude_model as model
+from lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
+from lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
+from lra.database import create_db_and_tables, store_profile
 import json
 import httpx
 from bs4 import BeautifulSoup
@@ -76,7 +76,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfi
                     }))
 
 
-def main() -> None:
+def main(domain: str) -> LeadProfile:
     create_db_and_tables()
 
     assert api_key is not None
@@ -86,9 +86,9 @@ def main() -> None:
     )
 
     with httpx.Client(timeout=10.0) as httpx_client:
-        result = run(domain="monday.com", client=client, httpx_client=httpx_client)
-        print(result)
+        result = run(domain=domain, client=client, httpx_client=httpx_client)
+        return result
 
 
 if __name__ == "__main__":
-    main()
+    main("monday.com")

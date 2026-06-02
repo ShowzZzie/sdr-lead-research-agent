@@ -1,4 +1,4 @@
-from src.lra.tools.fetch_homepage import fetch_homepage
+from lra.tools.fetch_homepage import fetch_homepage
 import httpx
 
 def test_fetch_homepage_returns_text():

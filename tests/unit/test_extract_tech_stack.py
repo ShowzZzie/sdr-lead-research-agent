@@ -1,4 +1,4 @@
-from src.lra.tools.extract_tech_stack import extract_tech_stack
+from lra.tools.extract_tech_stack import extract_tech_stack
 
 def test_extract_tech_stack_returns_list():
     result = extract_tech_stack("hotjar.com")

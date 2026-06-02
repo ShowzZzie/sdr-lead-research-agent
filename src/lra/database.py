@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlmodel import Field, SQLModel, create_engine, Session
-from src.lra.config import db_path
-from src.lra.schemas import LeadProfile
+from lra.config import db_path
+from lra.schemas import LeadProfile
 
 class Profile(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
