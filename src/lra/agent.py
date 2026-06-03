@@ -9,11 +9,14 @@ from lra.database import create_db_and_tables, store_profile
 import json
 import httpx
 from bs4 import BeautifulSoup
+import logging
+
+logger = logging.getLogger(__name__)
 
 tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK])
 
 def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfile:    
-    messages: list[MessageParam] = [] # initiating the list of messages
+    messages: list[MessageParam] = []
     first_message = {
         "role": "user",
         "content": f"Research the company at {domain}. Use the fetch_homepage tool to retrieve their homepage content, then analyze it."
@@ -38,27 +41,32 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfi
         }))
         input_tokens_track += response.usage.input_tokens
         output_tokens_track += response.usage.output_tokens
-
-        print(f"[iteration {iterations}] stop_reason={response.stop_reason}")
+        
+        logger.info("iteration complete", extra={"iteration": iterations, "stop_reason": response.stop_reason})
         if response.stop_reason == "end_turn":
             messages.append(cast(MessageParam, {
                 "role": "user",
                 "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
             }))
-            final_response, input_tokens_final, output_tokens_final = client.final(
+            final_response, input_tokens_final_call_only, output_tokens_final_call_only = client.final(
                 messages=messages,
                 output_model=LeadProfile
             )
-            input_tokens_track += input_tokens_final
-            output_tokens_track += output_tokens_final
+            input_tokens_track += input_tokens_final_call_only
+            output_tokens_track += output_tokens_final_call_only
             assert isinstance(final_response, LeadProfile)
             store_profile(domain=domain, profile=final_response, input_tokens=input_tokens_track, output_tokens=output_tokens_track)
+            logger.info("run complete", extra={
+                "domain": domain,
+                "input_tokens": input_tokens_track,
+                "output_tokens": output_tokens_track
+            })
             return final_response
 
         if response.stop_reason == "tool_use":
             for block in response.content:
                 if block.type == "tool_use" and block.name == "fetch_homepage":
-                    print(f"[tool] calling fetch_homepage with domain={domain}")
+                    logger.info("tool usage", extra={"tool": block.name, "domain": domain})
                     fh_result = fetch_homepage(str(block.input["domain"]), httpx_client)
                     assert fh_result is not None
                     soup = BeautifulSoup(fh_result, 'html.parser')
@@ -67,7 +75,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfi
                         "content": [{"type": "tool_result", "tool_use_id": block.id, "content": soup.get_text(separator="\n", strip=True)[:3000]}]
                     }))
                 if block.type == "tool_use" and block.name == "extract_tech_stack":
-                    print(f"[tool] calling extract_tech_stack, fh_result available: {fh_result is not None}")
+                    logger.info("tool_usage", extra={"tool": block.name, "fh_result_available": fh_result is not None})
                     assert fh_result is not None
                     ets_result = extract_tech_stack(fh_result)
                     messages.append(cast(MessageParam, {

@@ -4,7 +4,7 @@ from lra.agent import main
 app = typer.Typer(no_args_is_help=True)
 
 @app.callback()
-def callback():
+def callback() -> None:
     pass
 
 @app.command()

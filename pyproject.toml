@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.28.1",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
+    "python-json-logger>=4.1.0",
     "sqlmodel>=0.0.38",
     "typer>=0.26.6",
 ]
