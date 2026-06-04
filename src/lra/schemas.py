@@ -19,23 +19,23 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 class FundingEvent(BaseModel):
-    round: str | None
+    round: str | None = None
     date: datetime
-    amount_raised: float | None
+    amount_raised: float | None = None
     investors: list[str]
     source: Source
 
 class Person(BaseModel):
     name: str
-    email: str | None
+    email: str | None = None
     role: str
-    phone_number: str | None # for country prefix, the '+'
-    source: Source | None
+    phone_number: str | None = None # for country prefix, the '+'
+    source: Source | None = None
 
 class TechSignal(BaseModel):
     tool: str
     source: Source
-    confidence: Confidence | None
+    confidence: Confidence | None = None
 
 class FitSignal(BaseModel):
     reason: str
@@ -49,14 +49,14 @@ class NewsItem(BaseModel):
 
 class Company(BaseModel):
     name: str
-    website: AnyUrl | None
-    stock_symbol: str | None
+    website: AnyUrl | None = None
+    stock_symbol: str | None = None
     category: str
     description: str
-    employees_amount: int | None
-    employees_amount_confidence: Confidence | None
-    yoy_growth: float | None
-    yoy_growth_confidence: Confidence | None
+    employees_amount: int | None = None
+    employees_amount_confidence: Confidence | None = None
+    yoy_growth: float | None = None
+    yoy_growth_confidence: Confidence | None = None
     sources: list[Source]
 
 class LeadProfile(BaseModel):
