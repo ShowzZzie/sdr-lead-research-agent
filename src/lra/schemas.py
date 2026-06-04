@@ -12,6 +12,12 @@ class Confidence(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
 
+class JobStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
 class FundingEvent(BaseModel):
     round: str | None
     date: datetime

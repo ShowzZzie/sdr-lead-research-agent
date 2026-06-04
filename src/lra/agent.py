@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK])
 
-def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfile:    
+def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int | None = None) -> LeadProfile:    
     messages: list[MessageParam] = []
     first_message = {
         "role": "user",
@@ -55,7 +55,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfi
             input_tokens_track += input_tokens_final_call_only
             output_tokens_track += output_tokens_final_call_only
             assert isinstance(final_response, LeadProfile)
-            store_profile(domain=domain, profile=final_response, input_tokens=input_tokens_track, output_tokens=output_tokens_track)
+            store_profile(domain=domain, profile=final_response, input_tokens=input_tokens_track, output_tokens=output_tokens_track, job_id=job_id)
             logger.info("run complete", extra={
                 "domain": domain,
                 "input_tokens": input_tokens_track,
@@ -84,7 +84,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client) -> LeadProfi
                     }))
 
 
-def main(domain: str) -> LeadProfile:
+def main(domain: str, job_id: int | None = None) -> LeadProfile:
     create_db_and_tables()
 
     assert api_key is not None
@@ -94,7 +94,7 @@ def main(domain: str) -> LeadProfile:
     )
 
     with httpx.Client(timeout=10.0) as httpx_client:
-        result = run(domain=domain, client=client, httpx_client=httpx_client)
+        result = run(domain=domain, client=client, httpx_client=httpx_client, job_id=job_id)
         return result
 
 
