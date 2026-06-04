@@ -27,3 +27,6 @@ htmlcov/
 
 # scratch files
 src/scratch_world.py
+
+# database files
+database.db
