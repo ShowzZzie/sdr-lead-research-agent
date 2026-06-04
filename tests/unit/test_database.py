@@ -1,28 +1,25 @@
 from sqlmodel import create_engine, SQLModel
 from lra import database
-from lra.schemas import LeadProfile, Company, JobStatus
+from lra.schemas import JobStatus
 import pytest
+from sqlalchemy.pool import StaticPool
 
 @pytest.fixture
 def db(monkeypatch):
-    test_engine = create_engine("sqlite:///:memory:")
+    test_engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
     SQLModel.metadata.create_all(test_engine)
     monkeypatch.setattr(database, "engine", test_engine)
-
-
-fake_company = Company(
-    name="Test Co",
-    category="Test",
-    description="Test description",
-    sources=[]
-)
-fake_profile = LeadProfile(company=fake_company)
+    
 
 def test_create_job(db):
     job = database.create_job("stripe.com")
     assert job.domain == "stripe.com"
 
-def test_store_profile(db):
+def test_store_profile(db, fake_profile):
     database.store_profile("foobar.baz", fake_profile, 12, 13, 2)
     result = database.get_profile_by_domain("foobar.baz")
     assert result.domain == "foobar.baz"
@@ -46,7 +43,7 @@ def test_get_job(db):
     assert isinstance(found, database.Job)
     assert found.domain == "foobar.baz"
 
-def test_get_profile_by_domain(db):
+def test_get_profile_by_domain(db, fake_profile):
     database.store_profile("foobar.baz", fake_profile, 11, 22, 33)
     result = database.get_profile_by_domain("foobar.baz")
     assert result is not None

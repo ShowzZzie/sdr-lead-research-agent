@@ -1,4 +1,3 @@
-from typing import Any
 import anthropic
 from anthropic.types import MessageParam, ToolParam
 from pydantic import BaseModel

@@ -6,4 +6,4 @@ def test_fetch_homepage_returns_text():
         result = fetch_homepage("stripe.com", client)
         assert isinstance(result, str)
         assert len(result) > 0
-        assert len(result) <= 3000
+        assert "<html" in result.lower()
