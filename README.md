@@ -22,7 +22,17 @@ The output schema (`LeadProfile`) includes:
 
 ## Architecture
 
-<!-- Add your architecture notes here -->
+The whole system is based on an Agentic loop, utilizing Claude Sonnet 4.6. After the user submits a domain he wants researched, CLI/API passes it to Agent module, where the loop starts. Initial prompt is sent to Claude, who requests the tools written in the Tools package, to fetch answers. Tool-related functions are executed in-Python. If the model decides to stop (stop_reason) due to tool_use, the loop continues, until we hit end_turn. Once the Claude calls end_turn stop reason, agent the result is returned in a JSON, containing LeadProfile. Otherwise, the loop calls for tools until it's ready to return with the final answer.
+
+### The distinction between LLM.py and Agent.py
+Reason LLM and Agent are separate modules, is strictly for modularity reasons. If you'd like to swap out models/providers, you will only have to swap Config and LLM, leaving Agent.py mostly untouched. Separation also ensures that Agent.py is the only module knowing about what exact domain user was asked for - LLM is blind to user input, being responsible only for passing and returning data from a model.
+
+### Why Tools is a package
+Splitting tools into separate modules within a single package, provides us with individual units for testing, as well as the ease of adding new tools (one file = one tool), or removing them. For testing, each tool is an indivdual unit, which makes debugging and testing easier.
+
+### How the API wraps the Agent
+API.py utilizes Agent.py's main() function via a helper function. With that function, we ensure that database is created, and main() call is scheduled as a background call. Helper is also responsible for updating Statuses of jobs, so that the jobs are not stuck on PENDING forever.
+
 
 ## Setup
 
@@ -38,6 +48,7 @@ The output schema (`LeadProfile`) includes:
 git clone <repository-url>
 cd sdr_lead_research_agent
 uv sync
+uv pip install -e .
 ```
 
 ### Environment variables
