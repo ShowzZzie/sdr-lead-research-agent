@@ -13,13 +13,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK])
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 1}
+
+tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK, WEB_SEARCH_TOOL])
 
 def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int | None = None) -> LeadProfile:    
     messages: list[MessageParam] = []
     first_message = {
         "role": "user",
-        "content": f"Research the company at {domain}. Use the fetch_homepage tool to retrieve their homepage content, then analyze it."
+        "content": f"Research the company at {domain} thoroughly. Use fetch_homepage to get their homepage, extract_tech_stack to detect their technology, and web_search to find recent news, funding events, and leadership information that may not be on the homepage. Build the most complete profile possible."
     }
     messages.append(cast(MessageParam, first_message))
 
@@ -44,6 +46,11 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int 
         
         logger.info("iteration complete", extra={"iteration": iterations, "stop_reason": response.stop_reason})
         if response.stop_reason == "end_turn":
+            for block in response.content:
+                if block.type == "server_tool_use":
+                    logger.info("server tool called", extra={"tool": block.name})
+                if block.type == "web_search_tool_result":
+                    logger.info("web search results received")
             messages.append(cast(MessageParam, {
                 "role": "user",
                 "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."

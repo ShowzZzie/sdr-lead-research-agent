@@ -9,7 +9,7 @@ anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
 if not anthropic_api_key:
     raise ValueError("Missing Anthropic API key")
 
-max_tokens=4096
+max_tokens=8192
 claude_model="claude-sonnet-4-6"
 
 database_name = "database.db"
