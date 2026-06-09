@@ -1,9 +1,6 @@
 MONDAY_FACTS = [
     ("company.name", "monday.com"),
-    ("company.stock_symbol", "NASDAQ: MNDY"),
-    ("company.website", "https://monday.com/"),
-    ("company.employees_amount", 2508),
-    ("company.yoy_growth", 27.0)
+    ("company.website", "https://monday.com/")
 ]
 
 ZAPIER_FACTS = [
