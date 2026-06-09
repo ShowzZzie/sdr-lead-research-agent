@@ -16,9 +16,9 @@ FETCH_HOMEPAGE_TOOL = {
     }
 
 
-def fetch_homepage(domain: str, client: httpx.Client) -> str:
+async def fetch_homepage(domain: str, client: httpx.AsyncClient) -> str:
     try:
-        response = client.get(f"https://{domain}", follow_redirects=True)
+        response = await client.get(f"https://{domain}", follow_redirects=True)
         response.raise_for_status()
     except httpx.HTTPError as e:
         raise RuntimeError(f"failed fetching for {domain}: {e}") from e

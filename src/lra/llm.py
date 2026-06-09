@@ -5,19 +5,19 @@ from lra.config import max_tokens as max_tokens_config
 
 class LLMClient:
     def __init__(self, api_key: str, model: str) -> None:
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.AsyncAnthropic(api_key=api_key)
         self.model = model
 
-    def call(self, messages: list[MessageParam], tools: list[ToolParam], max_tokens: int = max_tokens_config) -> anthropic.types.Message:
-        return self.client.messages.create(
+    async def call(self, messages: list[MessageParam], tools: list[ToolParam], max_tokens: int = max_tokens_config) -> anthropic.types.Message:
+        return await self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=messages,
             tools=tools
         )
 
-    def final(self, messages: list[MessageParam], output_model: type[BaseModel], max_tokens: int = max_tokens_config) -> tuple[BaseModel, int, int]:
-        resp = self.client.messages.create(
+    async def final(self, messages: list[MessageParam], output_model: type[BaseModel], max_tokens: int = max_tokens_config) -> tuple[BaseModel, int, int]:
+        resp = await self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=messages,

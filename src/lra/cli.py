@@ -1,5 +1,6 @@
 import typer
 from lra.agent import main
+import asyncio
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -12,7 +13,7 @@ def research(
     domain: str = typer.Option(..., "--domain", help="Company domain to research"),
     output: str = typer.Option(None, "--output", help="Output file path")
 ) -> None:
-    result = main(domain)
+    result = asyncio.run(main(domain))
     
     if output:
         with open(output, "w") as file:

@@ -18,10 +18,10 @@ app = FastAPI(lifespan=lifespan)
 class RequestSearch(BaseModel):
     domain: str
     
-def run_research_job(domain: str, job_id: int) -> None:
+async def run_research_job(domain: str, job_id: int) -> None:
     update_job_status(job_id, JobStatus.RUNNING)
     try:
-        main(domain, job_id)
+        await main(domain, job_id)
         update_job_status(job_id, JobStatus.COMPLETED)
     except Exception as e:
         update_job_status(job_id, JobStatus.FAILED, error=str(e))

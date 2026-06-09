@@ -10,6 +10,7 @@ import json
 import httpx
 from bs4 import BeautifulSoup
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_use
 
 tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK, WEB_SEARCH_TOOL])
 
-def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int | None = None) -> LeadProfile:    
+async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, job_id: int | None = None) -> LeadProfile:    
     messages: list[MessageParam] = []
     first_message = {
         "role": "user",
@@ -36,7 +37,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int 
             raise RuntimeError(f"Agent loop exceeded maximum iterations (15). Iteration ran {iterations}")
         iterations += 1
 
-        response = client.call(messages, tools)
+        response = await client.call(messages, tools)
         messages.append(cast(MessageParam, {
             "role": "assistant",
             "content": response.content
@@ -55,7 +56,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int 
                 "role": "user",
                 "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
             }))
-            final_response, input_tokens_final_call_only, output_tokens_final_call_only = client.final(
+            final_response, input_tokens_final_call_only, output_tokens_final_call_only = await client.final(
                 messages=messages,
                 output_model=LeadProfile
             )
@@ -70,11 +71,15 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int 
             })
             return final_response
 
+
+        # TODO V2.1: add asyncio.gather() for parallel tool dispatch
+        # when tools in the same iteration are independent of each other
+        # currently fetch_homepage and extract_tech_stack run in separate iterations
         if response.stop_reason == "tool_use":
             for block in response.content:
                 if block.type == "tool_use" and block.name == "fetch_homepage":
                     logger.info("tool usage", extra={"tool": block.name, "domain": domain})
-                    fh_result = fetch_homepage(str(block.input["domain"]), httpx_client)
+                    fh_result = await fetch_homepage(str(block.input["domain"]), httpx_client)
                     assert fh_result is not None
                     soup = BeautifulSoup(fh_result, 'html.parser')
                     messages.append(cast(MessageParam, {
@@ -91,7 +96,7 @@ def run(domain: str, client: LLMClient, httpx_client: httpx.Client, job_id: int 
                     }))
 
 
-def main(domain: str, job_id: int | None = None) -> LeadProfile:
+async def main(domain: str, job_id: int | None = None) -> LeadProfile:
     create_db_and_tables()
 
     assert api_key is not None
@@ -100,10 +105,10 @@ def main(domain: str, job_id: int | None = None) -> LeadProfile:
         model=model
     )
 
-    with httpx.Client(timeout=10.0) as httpx_client:
-        result = run(domain=domain, client=client, httpx_client=httpx_client, job_id=job_id)
+    async with httpx.AsyncClient(timeout=10.0) as httpx_client:
+        result = await run(domain=domain, client=client, httpx_client=httpx_client, job_id=job_id)
         return result
 
 
 if __name__ == "__main__":
-    main("monday.com")
+    asyncio.run(main("monday.com"))
