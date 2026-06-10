@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import logging
 from pythonjsonlogger.json import JsonFormatter
+from pathlib import Path
 
 load_dotenv()
 
@@ -13,7 +14,8 @@ max_tokens=8192
 claude_model="claude-sonnet-4-6"
 
 database_name = "database.db"
-db_path = f"sqlite:///{database_name}"
+BASE_DIR = Path(__file__).parent.parent.parent
+db_path = f"sqlite:///{BASE_DIR / database_name}"
 
 logger = logging.getLogger()
 logging.getLogger("httpx").setLevel(logging.WARNING)
