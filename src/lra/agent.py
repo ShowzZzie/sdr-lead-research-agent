@@ -21,7 +21,7 @@ WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_use
 tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK, WEB_SEARCH_TOOL])
 
 async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, job_id: int | None = None) -> LeadProfile:    
-    with langfuse.start_as_current_observation(as_type="agent", name=f"main-sdr-{domain}"):
+    with langfuse.start_as_current_observation(as_type="agent", name=f"main-sdr-{domain}", metadata={"domain": domain}):
         messages: list[MessageParam] = []
         first_message = {
             "role": "user",
