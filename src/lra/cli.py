@@ -11,9 +11,10 @@ def callback() -> None:
 @app.command()
 def research(
     domain: str = typer.Option(..., "--domain", help="Company domain to research"),
+    use_cache: bool = typer.Option(False, "--use-cache", help="Should app look through stored profiles before calling the agent"),
     output: str = typer.Option(None, "--output", help="Output file path")
 ) -> None:
-    result = asyncio.run(main(domain))
+    result = asyncio.run(main(domain, use_cache=use_cache))
     
     if output:
         with open(output, "w") as file:

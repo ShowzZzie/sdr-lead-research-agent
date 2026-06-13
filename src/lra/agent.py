@@ -5,7 +5,7 @@ from lra.llm import LLMClient
 from lra.config import anthropic_api_key as api_key, claude_model as model
 from lra.tools.fetch_homepage import FETCH_HOMEPAGE_TOOL, fetch_homepage
 from lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
-from lra.database import create_db_and_tables, store_profile
+from lra.database import create_db_and_tables, store_profile, get_profile_by_domain
 import json
 import httpx
 from bs4 import BeautifulSoup
@@ -123,8 +123,13 @@ async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, j
                         }))
 
 
-async def main(domain: str, job_id: int | None = None) -> LeadProfile:
+async def main(domain: str, job_id: int | None = None, use_cache: bool = False) -> LeadProfile:
     create_db_and_tables()
+
+    if use_cache:
+        profile_row = get_profile_by_domain(domain)
+        if profile_row is not None:
+            return LeadProfile.model_validate_json(profile_row.profile_json)
 
     assert api_key is not None
     client = LLMClient(
