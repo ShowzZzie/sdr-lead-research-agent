@@ -8,6 +8,7 @@ from lra.tools.extract_tech_stack import EXTRACT_TECH_STACK, extract_tech_stack
 from lra.database import create_db_and_tables, store_profile, get_profile_by_domain
 import json
 import httpx
+from datetime import date
 from bs4 import BeautifulSoup
 import logging
 import asyncio
@@ -23,9 +24,19 @@ tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TEC
 async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, job_id: int | None = None) -> LeadProfile:    
     with langfuse.start_as_current_observation(as_type="agent", name=f"main-sdr-{domain}", metadata={"domain": domain}):
         messages: list[MessageParam] = []
+        today = date.today().isoformat()
         first_message = {
             "role": "user",
-            "content": f"Research the company at {domain} thoroughly. Use fetch_homepage to get their homepage, extract_tech_stack to detect their technology, and web_search to find recent news, funding events, and leadership information that may not be on the homepage. Build the most complete profile possible."
+            "content": (
+                f"Today's date is {today}. Research the company at {domain} thoroughly. You MUST use all three tools:\n"
+                f"1. fetch_homepage — retrieve their homepage content\n"
+                f"2. extract_tech_stack — detect the technologies they use\n"
+                f"3. web_search — search for news and events from the past 12 months (since {today[:4]}) that you could not know from training data. Use queries like '{domain} news 2025 2026', '{domain} funding 2026', '{domain} leadership 2026'. This step is REQUIRED — do not skip it or substitute your training knowledge.\n\n"
+                f"IMPORTANT: Set date_retrieved to today ({today}) for any information found via web_search. "
+                f"Do not report facts from your training data as web search results. "
+                f"If you are uncertain whether information is from a live search or your training, say so.\n\n"
+                f"Build the most complete and up-to-date profile possible."
+            )
         }
         messages.append(cast(MessageParam, first_message))
 
@@ -60,6 +71,23 @@ async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, j
             
             logger.info("iteration complete", extra={"iteration": iterations, "stop_reason": response.stop_reason})
             if response.stop_reason == "end_turn":
+                web_search_used = any(
+                    block.type == "web_search_tool_result"
+                    for msg in messages
+                    for block in (msg["content"] if isinstance(msg["content"], list) else [])
+                    if isinstance(block, dict) and block.get("type") == "web_search_tool_result"
+                ) or any(
+                    block.type == "web_search_tool_result"
+                    for block in response.content
+                    if hasattr(block, "type")
+                )
+                if not web_search_used:
+                    logger.info("web search not used yet, forcing it")
+                    messages.append(cast(MessageParam, {
+                        "role": "user",
+                        "content": f"You have not used web_search yet. You MUST call web_search now to find recent news, funding events, and leadership information about {domain} before finishing."
+                    }))
+                    continue
                 for block in response.content:
                     if block.type == "server_tool_use":
                         logger.info("server tool called", extra={"tool": block.name})

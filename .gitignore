@@ -30,3 +30,6 @@ src/scratch_world.py
 
 # database files
 database.db
+
+# frontend mockup
+frontend_mockup.html
