@@ -7,6 +7,7 @@ from typing import Any
 from contextlib import asynccontextmanager
 import json
 from collections.abc import AsyncGenerator
+import asyncio
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -17,6 +18,9 @@ app = FastAPI(lifespan=lifespan)
 
 class RequestSearch(BaseModel):
     domain: str
+
+class RequestBatchSearch(BaseModel):
+    domains: list[str]
     
 async def run_research_job(domain: str, job_id: int) -> None:
     update_job_status(job_id, JobStatus.RUNNING)
@@ -51,3 +55,25 @@ def get_profile(domain: str) -> dict[str, Any]:
     if profile is None:
         raise HTTPException(status_code=404, detail=f"Can't find a profile for domain: {domain}")
     return {"profile": json.loads(profile.profile_json)}
+
+@app.post("/research/batch")
+async def post_batch_research(request: RequestBatchSearch) -> dict[str, Any]:
+    semaphore = asyncio.Semaphore(3)
+
+    async def run_with_semaphore(domain: str, job_id: int) -> None:
+        async with semaphore:
+            await run_research_job(domain, job_id)
+
+    jobs = []
+    tasks = []
+    for domain in request.domains:
+        job = create_job(domain)
+        assert job.id is not None
+        jobs.append({"domain": job.domain, "job_id": job.id, "status": job.status})
+        tasks.append(run_with_semaphore(job.domain, job.id))
+
+    async def _run_batch() -> None:
+        await asyncio.gather(*tasks)
+
+    asyncio.create_task(_run_batch())
+    return {"jobs": jobs}
