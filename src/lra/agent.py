@@ -17,7 +17,7 @@ from langfuse import get_client
 logger = logging.getLogger(__name__)
 langfuse = get_client()
 
-WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 1}
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 2}
 
 tools: list[ToolParam] = cast(list[ToolParam], [FETCH_HOMEPAGE_TOOL, EXTRACT_TECH_STACK, WEB_SEARCH_TOOL])
 
@@ -33,6 +33,10 @@ async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, j
                 f"2. extract_tech_stack — detect the technologies they use\n"
                 f"3. web_search — search for news and events from the past 12 months (since {today[:4]}) that you could not know from training data. Use queries like '{domain} news 2025 2026', '{domain} funding 2026', '{domain} leadership 2026'. This step is REQUIRED — do not skip it or substitute your training knowledge.\n\n"
                 f"IMPORTANT: Set date_retrieved to today ({today}) for any information found via web_search. "
+                f"For person[], include C-suite and VP-level contacts when found via fetch_homepage or web_search."
+                f"Use name + role only; leave email/phone null if unknown."
+                f"Each person MUST have a source URL from your research — do not invent emails."
+                f"If web_search did not return leadership, run a search specifically for '{domain} CEO CFO leadership team'."
                 f"Do not report facts from your training data as web search results. "
                 f"If you are uncertain whether information is from a live search or your training, say so.\n\n"
                 f"Build the most complete and up-to-date profile possible."
@@ -95,7 +99,7 @@ async def run(domain: str, client: LLMClient, httpx_client: httpx.AsyncClient, j
                         logger.info("web search results received")
                 messages.append(cast(MessageParam, {
                     "role": "user",
-                    "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text."
+                    "content": f"Based on your research, return a JSON object matching this schema exactly:\n{json.dumps(LeadProfile.model_json_schema(), indent=2)}\n\nReturn only the JSON object, no other text. person must not be empty for public companies if executives were mentioned anywhere in the conversation above."
                 }))
                 final_response, input_tokens_final_call_only, output_tokens_final_call_only = await client.final(
                     messages=messages,
